@@ -11,7 +11,7 @@
  --font: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
 }
 body{margin:0; font-family:var(--font); color:var(--fg);}
-header{padding:12px 14px; border-bottom:1px solid var(--bd); background:var(--bg); display:flex; justify-content:space-between; align-items:center;}
+header{padding:12px 14px; border-bottom:1px solid var(--bd); background:var(--bg); display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;}
 header h1{font-size:16px; margin:0;}
 button{
  background:var(--pri); color:#fff; border:0; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:600;
@@ -26,7 +26,7 @@ input, select{
 
 .card{border:1px solid var(--bd); padding:12px; border-radius:8px; background:#fff;}
 .row{display:flex; flex-direction:column; margin-bottom:8px;}
-.toolbar{display:flex; gap:8px; margin-top:8px;}
+.toolbar{display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;}
 .table-wrap{overflow:auto; max-height:70vh; border:1px solid var(--bd); border-radius:8px;}
 table{width:100%; border-collapse:collapse; font-size:13px;}
 th,td{border-bottom:1px solid var(--bd); padding:6px 8px; white-space:nowrap;}
@@ -45,13 +45,24 @@ thead th .sort-ind{margin-left:6px; color:#888; font-size:11px;}
 
 <body>
 <header>
- <h1>QA Records – Simple Entry & Preview</h1>
- <div class="actions" style="display:flex; gap:8px;">
-   <button id="btnExportCSV" type="button">Export CSV</button>
-   <label for="fileImport" class="secondary" style="padding:8px 12px; border-radius:6px; cursor:pointer;">Import</label>
-   <input id="fileImport" type="file" accept=".csv,.json" style="display:none">
-   <button id="btnClear" type="button" class="warn">Hapus Semua</button>
- </div>
+  <h1>QA Records – Simple Entry & Preview</h1>
+  <div class="actions" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <button id="btnExportCSV" type="button">Export CSV</button>
+    <!-- (Opsional) Export JSON: nonaktifkan jika tidak dipakai -->
+    <!-- <button id="btnExportJSON" type="button" class="secondary">Export JSON</button> -->
+
+    <label for="fileImport" class="secondary" style="padding:8px 12px; border-radius:6px; cursor:pointer;">Import File</label>
+    <input id="fileImport" type="file" accept=".csv,.json" style="display:none">
+
+    <button id="btnClear" type="button" class="warn">Hapus Semua</button>
+
+    <!-- Import dari URL -->
+    <input id="gitUrl" placeholder="URL CSV GitHub / path relatif (mis. qa_records.csv)" style="width:320px; max-width:60vw;">
+    <button id="btnImportURL" type="button" class="secondary">Import dari URL</button>
+
+    <!-- Import default (otomatis ke qa_records.csv) -->
+    <button id="btnImportDefault" type="button" class="secondary">Import Default</button>
+  </div>
 </header>
 
 <div class="wrap">
@@ -66,18 +77,17 @@ thead th .sort-ind{margin-left:6px; color:#888; font-size:11px;}
    <div class="row"><label for="Material">Material</label><input id="Material" required></div>
    <div class="row"><label for="Supplier">Supplier</label><input id="Supplier" required></div>
    <div class="row"><label for="Customer">Customer</label><input id="Customer" required></div>
-   <div class="row"><label for="NC">NC</label><input id="NC" required></div>
+   <div class="row"><label for="NC">NC</label><input id="Contract" required></div>
    <div class="row"><label for="Ref_No">Ref_No</label><input id="Ref_No" required></div>
    <div class="row"><label for="No_Order">No_Order</label><input id="No_Order" type="number" required></div>
+   <div class="row"><label for="Container">Container</label><input id="Container" type="number" required></div>
    <div class="row"><label for="Date">Date</label><input id="Date" type="date" required></div>
    <div class="row"><label for="Kgs">Kgs</label><input id="Kgs" type="text" inputmode="decimal" required></div>
    <div class="row"><label for="Par">Par</label>
      <select id="Par" required>
        <option value="">-</option>
        <option>BI</option><option>MC</option><option>AW</option>
-       <option>VO</option><option>PP</option><option>BB</option>
-       <option>FM</option><option>TA</option><option>AIA</option>
-       <option>Pb</option><option>Cd</option><option>Sty</option>
+       <option>VO</option><option>PP</option><option>BB</option><option>FM</option>
      </select>
    </div>
 
@@ -119,9 +129,10 @@ thead th .sort-ind{margin-left:6px; color:#888; font-size:11px;}
          <th data-field="Material">Material <span class="sort-ind"></span></th>
          <th data-field="Supplier">Supplier <span class="sort-ind"></span></th>
          <th data-field="Customer">Customer <span class="sort-ind"></span></th>
-         <th data-field="NC">NC <span class="sort-ind"></span></th>
+         <th data-field="Contract">NC <span class="sort-ind"></span></th>
          <th data-field="Ref_No">Ref_No <span class="sort-ind"></span></th>
          <th data-field="No_Order">No_Order <span class="sort-ind"></span></th>
+         <th data-field="Container">Container <span class="sort-ind"></span></th>
          <th data-field="Date">Date <span class="sort-ind"></span></th>
          <th data-field="Kgs">Kgs <span class="sort-ind"></span></th>
          <th data-field="Par">Par <span class="sort-ind"></span></th>
@@ -143,6 +154,9 @@ thead th .sort-ind{margin-left:6px; color:#888; font-size:11px;}
 const $ = q => document.querySelector(q);
 const $$ = q => Array.from(document.querySelectorAll(q));
 const toID = d => { if(!d) return ""; const [y,m,da]=d.split("-"); return `${da}/${m}/${y}`; };
+
+// Ganti ini jika file default Anda berada di path lain:
+const DEFAULT_CSV_PATH = "qa_records.csv";
 
 // Parser angka tahan lokal (koma/titik) + tangani "NaN"/kosong -> null
 function parseSafeNum(raw) {
@@ -173,7 +187,7 @@ function fmtSafe(n) {
   return Number.isFinite(num) ? num.toLocaleString("id-ID") : "";
 }
 
-function isNumericField(field){ return new Set(["No_Order",,"Kgs","x","sd","n","id"]).has(field); }
+function isNumericField(field){ return new Set(["No_Order","Container","Kgs","x","sd","n","id"]).has(field); }
 function compareVal(a,b,field,dir){
   if(field==="Date"){
     const va = a?.Date || "", vb = b?.Date || "";
@@ -186,6 +200,17 @@ function compareVal(a,b,field,dir){
   const va = String(a?.[field] ?? "").toLowerCase();
   const vb = String(b?.[field] ?? "").toLowerCase();
   if(va<vb) return -1*dir; if(va>vb) return 1*dir; return 0;
+}
+
+async function fetchText(url){
+  try{
+    const full = new URL(url, location.href).href;
+    const res = await fetch(full, { cache: "no-store" });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.text();
+  }catch(err){
+    throw new Error("Gagal fetch: " + err.message);
+  }
 }
 
 /* ====================== INDEXEDDB =========================== */
@@ -218,10 +243,11 @@ function getForm(){
     Material: Material.value.trim(),
     Supplier: Supplier.value.trim(),
     Customer: Customer.value.trim(),
-    NC: NC.value.trim(),
+    Contract: Contract.value.trim(),       // label di UI "NC", field tetap Contract
     Ref_No: Ref_No.value.trim(),
 
     No_Order:  parseSafeNum(No_Order.value)  ?? 0,
+    Container: parseSafeNum(Container.value) ?? 0,
     Date: Date.value,
 
     Kgs: parseSafeNum(Kgs.value),
@@ -235,9 +261,10 @@ function setForm(r){
   Material.value=r.Material||"";
   Supplier.value=r.Supplier||"";
   Customer.value=r.Customer||"";
-  NC.value=r.NC||"";
+  Contract.value=r.Contract||"";
   Ref_No.value=r.Ref_No||"";
   No_Order.value=(r.No_Order??"");
+  Container.value=(r.Container??"");
   Date.value=r.Date||"";
   Kgs.value=(r.Kgs??"");
   Par.value=r.Par||"";
@@ -273,9 +300,10 @@ function rowHTML(r){
     <td>${r.Material ?? ""}</td>
     <td>${r.Supplier ?? ""}</td>
     <td>${r.Customer ?? ""}</td>
-    <td>${r.NC ?? ""}</td>
+    <td>${r.Contract ?? ""}</td>
     <td>${r.Ref_No ?? ""}</td>
     <td class="right">${fmtSafe(r.No_Order)}</td>
+    <td class="right">${fmtSafe(r.Container)}</td>
     <td>${toID(r.Date)}</td>
     <td class="right">${fmtSafe(r.Kgs)}</td>
     <td>${r.Par ?? ""}</td>
@@ -325,7 +353,7 @@ function sanitizeRecord(rec){
     const v = parseSafeNum(rec[k]);
     rec[k] = (v === null ? null : v);
   };
-  ["No_Order","Kgs","x","sd","n"].forEach(fix);
+  ["No_Order","Container","Kgs","x","sd","n"].forEach(fix);
   return rec;
 }
 
@@ -346,6 +374,7 @@ entryForm.addEventListener("submit",async e=>{
   }else{                        // ADD
     await addRecord(data);
     resetFormKeepLastExcept();  // pertahankan field selain Par, x, sd, n
+    Material.focus();           // auto-focus ke field pertama
   }
   await refresh();
 });
@@ -389,20 +418,31 @@ $("#dataTable thead").addEventListener("click", (e)=>{
 });
 
 /* ===================== IMPORT / EXPORT ====================== */
+// EXPORT CSV: nama file tetap -> "qa_records.csv"
 btnExportCSV.addEventListener("click",async()=>{
   const list=(await getAll()).map(sanitizeRecord);
   if(!list.length){ alert("Data kosong"); return; }
-  let csv="Material;Supplier;Customer;NC;Ref_No;No_Order;Date;Kgs;Par;x;sd;n\n";
+  let csv="Material;Supplier;Customer;Contract;Ref_No;No_Order;Container;Date;Kgs;Par;x;sd;n\n";
   list.forEach(r=>{
-    csv+=`${r.Material??""};${r.Supplier??""};${r.Customer??""};${r.NC??""};${r.Ref_No??""};${r.No_Order??""};${toID(r.Date)};${r.Kgs??""};${r.Par??""};${r.x??""};${r.sd??""};${r.n??""}\n`;
+    csv+=`${r.Material??""};${r.Supplier??""};${r.Customer??""};${r.Contract??""};${r.Ref_No??""};${r.No_Order??""};${r.Container??""};${toID(r.Date)};${r.Kgs??""};${r.Par??""};${r.x??""};${r.sd??""};${r.n??""}\n`;
   });
   const blob=new Blob([csv],{type:"text/csv"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
-  a.download="qa_records.csv";
+  a.download="qa_records.csv"; // <- fixed name
   a.click();
 });
 
+// (Opsional, jika tombol diaktifkan) Export JSON aman meski tombol dihapus
+document.getElementById("btnExportJSON")?.addEventListener("click", async()=>{
+  const list=await getAll();
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(list,null,2)],{type:"application/json"}));
+  a.download="qa_records.json";
+  a.click();
+});
+
+// IMPORT dari file lokal (tetap)
 fileImport.addEventListener("change",async e=>{
   const f=e.target.files[0];
   if(!f) return;
@@ -411,7 +451,6 @@ fileImport.addEventListener("change",async e=>{
   if(f.name.toLowerCase().endsWith(".json")){
     arr=JSON.parse(txt);
   }else{
-    // CSV ; dengan tanggal dd/mm/yyyy
     const lines=txt.trim().split(/\r?\n/).slice(1).filter(Boolean);
     arr=lines.map(l=>{
       const p=l.split(";");
@@ -424,8 +463,9 @@ fileImport.addEventListener("change",async e=>{
         : dRaw;
 
       return {
-        Material:p[0], Supplier:p[1], Customer:p[2], NC:p[3], Ref_No:p[4],
+        Material:p[0], Supplier:p[1], Customer:p[2], Contract:p[3], Ref_No:p[4],
         No_Order:  parseSafeNum(p[5]) ?? 0,
+        Container: parseSafeNum(p[6]) ?? 0,
         Date: dateIso,
         Kgs: parseSafeNum(p[8]),
         Par: p[9],
@@ -442,10 +482,100 @@ fileImport.addEventListener("change",async e=>{
   fileImport.value="";
 });
 
-btnClear.addEventListener("click",async()=>{
-  if(confirm("Yakin hapus semua data?")){
-    await clearAll();
+// IMPORT dari URL (manual)
+$("#btnImportURL")?.addEventListener("click", async ()=>{
+  const urlRaw = $("#gitUrl")?.value.trim();
+  if(!urlRaw){
+    alert("Masukkan URL CSV (Raw GitHub) atau path relatif (mis. qa_records.csv).");
+    return;
+  }
+  try{
+    const url = urlRaw + (urlRaw.includes("?") ? "" : `?t=${Date.now()}`);
+    const txt = await fetchText(url);
+    const lines = txt.trim().split(/\r?\n/).slice(1).filter(Boolean);
+    const arr = lines.map(l=>{
+      const p=l.split(";");
+      const dRaw = p[7] || "";
+      const dateIso = dRaw.includes("/")
+        ? (()=>{
+             const [dd,mm,yy]=dRaw.split("/");
+             return `${yy}-${mm}-${dd}`;
+           })()
+        : dRaw;
+      return {
+        Material:p[0], Supplier:p[1], Customer:p[2], Contract:p[3], Ref_No:p[4],
+        No_Order:  parseSafeNum(p[5]) ?? 0,
+        Container: parseSafeNum(p[6]) ?? 0,
+        Date: dateIso,
+        Kgs: parseSafeNum(p[8]),
+        Par: p[9],
+        x:  parseSafeNum(p[10]),
+        sd: parseSafeNum(p[11]),
+        n:  parseSafeNum(p[12])
+      };
+    });
+
+    const store=tx("readwrite");
+    await new Promise((resolve,reject)=>{
+      let pending = arr.length; if(pending===0) resolve();
+      for(const r of arr){
+        delete r.id;
+        const req = store.add(r);
+        req.onsuccess = ()=>{ if(--pending===0) resolve(); };
+        req.onerror  = ev=> reject(ev.target.error);
+      }
+    });
+
     await refresh();
+    alert("Import dari URL selesai.");
+  }catch(err){
+    alert(err.message);
+  }
+});
+
+// IMPORT DEFAULT (otomatis ke DEFAULT_CSV_PATH)
+$("#btnImportDefault")?.addEventListener("click", async ()=>{
+  try{
+    const url = DEFAULT_CSV_PATH + (DEFAULT_CSV_PATH.includes("?") ? "" : `?t=${Date.now()}`);
+    const txt = await fetchText(url);
+    const lines = txt.trim().split(/\r?\n/).slice(1).filter(Boolean);
+    const arr = lines.map(l=>{
+      const p=l.split(";");
+      const dRaw = p[7] || "";
+      const dateIso = dRaw.includes("/")
+        ? (()=>{
+             const [dd,mm,yy]=dRaw.split("/");
+             return `${yy}-${mm}-${dd}`;
+           })()
+        : dRaw;
+      return {
+        Material:p[0], Supplier:p[1], Customer:p[2], Contract:p[3], Ref_No:p[4],
+        No_Order:  parseSafeNum(p[5]) ?? 0,
+        Container: parseSafeNum(p[6]) ?? 0,
+        Date: dateIso,
+        Kgs: parseSafeNum(p[8]),
+        Par: p[9],
+        x:  parseSafeNum(p[10]),
+        sd: parseSafeNum(p[11]),
+        n:  parseSafeNum(p[12])
+      };
+    });
+
+    const store=tx("readwrite");
+    await new Promise((resolve,reject)=>{
+      let pending = arr.length; if(pending===0) resolve();
+      for(const r of arr){
+        delete r.id;
+        const req = store.add(r);
+        req.onsuccess = ()=>{ if(--pending===0) resolve(); };
+        req.onerror  = ev=> reject(ev.target.error);
+      }
+    });
+
+    await refresh();
+    alert(`Import default selesai dari: ${DEFAULT_CSV_PATH}`);
+  }catch(err){
+    alert(err.message + `\nPastikan file ${DEFAULT_CSV_PATH} tersedia di repo/halaman yang sama.`);
   }
 });
 
