@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QA Records – Entry & Database (Simple Version)</title>
+
+<style>
+:root{
+ --gap:10px; --bg:#f7f7f7; --fg:#222; --bd:#ddd; --pri:#0b6; --warn:#d33; --mut:#666;
+ --font: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+}
+body{margin:0; font-family:var(--font); color:var(--fg);}
+header{padding:12px 14px; border-bottom:1px solid var(--bd); background:var(--bg); display:flex; justify-content:space-between; align-items:center;}
+header h1{font-size:16px; margin:0;}
+button{
+ background:var(--pri); color:#fff; border:0; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:600;
+}
+button.secondary{background:#777;}
+button.warn{background:var(--warn);}
+input, select{
+ border:1px solid var(--bd); border-radius:6px; padding:7px 8px; width:100%; box-sizing:border-box;
+}
+.wrap{display:grid; grid-template-columns: 360px 1fr; gap:var(--gap); padding:12px;}
+@media (max-width:930px){ .wrap{grid-template-columns:1fr;} }
+
+.card{border:1px solid var(--bd); padding:12px; border-radius:8px; background:#fff;}
+.row{display:flex; flex-direction:column; margin-bottom:8px;}
+.toolbar{display:flex; gap:8px; margin-top:8px;}
+.table-wrap{overflow:auto; max-height:70vh; border:1px solid var(--bd); border-radius:8px;}
+table{width:100%; border-collapse:collapse; font-size:13px;}
+th,td{border-bottom:1px solid var(--bd); padding:6px 8px; white-space:nowrap;}
+thead th{background:#fafafa; position:sticky; top:0; cursor:pointer; user-select:none;}
+thead th.nosort{cursor:default;}
+thead th .sort-ind{margin-left:6px; color:#888; font-size:11px;}
+.right{text-align:right;}
+.center{text-align:center;}
+.muted{font-size:12px; color:#666;}
+
+/* x, sd, n dalam 1 baris */
+.triple { display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; }
+.triple .row { margin-bottom:0; }
+</style>
+</head>
+
+<body>
+<header>
+ <h1>QA Records – Simple Entry & Preview</h1>
+ <div class="actions" style="display:flex; gap:8px;">
+   <button id="btnExportCSV" type="button">Export CSV</button>
+   <label for="fileImport" class="secondary" style="padding:8px 12px; border-radius:6px; cursor:pointer;">Import</label>
+   <input id="fileImport" type="file" accept=".csv,.json" style="display:none">
+   <button id="btnClear" type="button" class="warn">Hapus Semua</button>
+ </div>
+</header>
+
+<div class="wrap">
+
+<!-- ================= FORM ENTRY ================= -->
+<section class="card">
+ <div class="muted" id="formMode">Mode: Tambah</div>
+
+ <form id="entryForm" autocomplete="off">
+   <input type="hidden" id="id">
+
+   <div class="row"><label for="Material">Material</label><input id="Material" required></div>
+   <div class="row"><label for="Supplier">Supplier</label><input id="Supplier" required></div>
+   <div class="row"><label for="Customer">Customer</label><input id="Customer" required></div>
+   <div class="row"><label for="NC">NC</label><input id="NC" required></div>
+   <div class="row"><label for="Ref_No">Ref_No</label><input id="Ref_No" required></div>
+   <div class="row"><label for="No_Order">No_Order</label><input id="No_Order" type="number" required></div>
+   <div class="row"><label for="Date">Date</label><input id="Date" type="date" required></div>
+   <div class="row"><label for="Kgs">Kgs</label><input id="Kgs" type="text" inputmode="decimal" required></div>
+   <div class="row"><label for="Par">Par</label>
+     <select id="Par" required>
+       <option value="">-</option>
+       <option>BI</option><option>MC</option><option>AW</option>
+       <option>VO</option><option>PP</option><option>BB</option>
+       <option>FM</option><option>TA</option><option>AIA</option>
+       <option>Pb</option><option>Cd</option><option>Sty</option>
+     </select>
+   </div>
+
+   <!-- x, sd, n dalam satu baris -->
+   <div class="triple">
+     <div class="row">
+       <label for="x">x</label>
+       <input id="x" type="text" inputmode="decimal">
+     </div>
+     <div class="row">
+       <label for="sd">sd</label>
+       <input id="sd" type="text" inputmode="decimal">
+     </div>
+     <div class="row">
+       <label for="n">n</label>
+       <input id="n" type="number">
+     </div>
+   </div>
+
+   <div class="toolbar">
+     <button type="submit" id="btnSave">Tambah</button>
+     <button type="button" id="btnCancel" class="secondary">Reset</button>
+   </div>
+ </form>
+</section>
+
+<!-- ================= DATA TABLE ================= -->
+<section class="card">
+ <div class="toolbar" style="margin-bottom:8px;">
+   <input id="searchBox" placeholder="Cari cepat..." style="flex:1;">
+   <span class="muted" id="countInfo"></span>
+ </div>
+
+ <div class="table-wrap">
+   <table id="dataTable">
+     <thead>
+       <tr>
+         <th class="nosort">ID</th>
+         <th data-field="Material">Material <span class="sort-ind"></span></th>
+         <th data-field="Supplier">Supplier <span class="sort-ind"></span></th>
+         <th data-field="Customer">Customer <span class="sort-ind"></span></th>
+         <th data-field="NC">NC <span class="sort-ind"></span></th>
+         <th data-field="Ref_No">Ref_No <span class="sort-ind"></span></th>
+         <th data-field="No_Order">No_Order <span class="sort-ind"></span></th>
+         <th data-field="Date">Date <span class="sort-ind"></span></th>
+         <th data-field="Kgs">Kgs <span class="sort-ind"></span></th>
+         <th data-field="Par">Par <span class="sort-ind"></span></th>
+         <th data-field="x">x <span class="sort-ind"></span></th>
+         <th data-field="sd">sd <span class="sort-ind"></span></th>
+         <th data-field="n">n <span class="sort-ind"></span></th>
+         <th class="nosort">Aksi</th>
+       </tr>
+     </thead>
+     <tbody id="tbody"></tbody>
+   </table>
+ </div>
+</section>
+
+</div>
+
+<script>
+/* ========================== UTIL ============================ */
+const $ = q => document.querySelector(q);
+const $$ = q => Array.from(document.querySelectorAll(q));
+const toID = d => { if(!d) return ""; const [y,m,da]=d.split("-"); return `${da}/${m}/${y}`; };
+
+// Parser angka tahan lokal (koma/titik) + tangani "NaN"/kosong -> null
+function parseSafeNum(raw) {
+  if (raw === undefined || raw === null) return null;
+  let s = String(raw).trim();
+  if (s === "" || s.toLowerCase() === "nan") return null;
+  s = s.replace(/\s+/g, "");            // buang spasi
+  const hasComma = s.includes(",");
+  const hasDot = s.includes(".");
+  if (hasComma && !hasDot) {
+    s = s.replace(",", ".");            // 2,5 -> 2.5
+  } else if (hasComma && hasDot) {
+    const lastComma = s.lastIndexOf(",");
+    const lastDot   = s.lastIndexOf(".");
+    const dec  = (lastComma > lastDot) ? "," : ".";
+    const thou = dec === "," ? "." : ",";
+    s = s.split(thou).join("");         // hapus pemisah ribuan
+    s = s.replace(dec, ".");            // jadikan titik desimal
+  }
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+// Formatter aman: jika null/NaN -> "", jika finite -> locale string
+function fmtSafe(n) {
+  if (n === null || n === undefined) return "";
+  const num = Number(n);
+  return Number.isFinite(num) ? num.toLocaleString("id-ID") : "";
+}
+
+function isNumericField(field){ return new Set(["No_Order",,"Kgs","x","sd","n","id"]).has(field); }
+function compareVal(a,b,field,dir){
+  if(field==="Date"){
+    const va = a?.Date || "", vb = b?.Date || "";
+    return (va<vb? -1: va>vb? 1: 0) * dir;
+  }
+  if(isNumericField(field)){
+    const va = Number(a?.[field] ?? 0), vb = Number(b?.[field] ?? 0);
+    if(va<vb) return -1*dir; if(va>vb) return 1*dir; return 0;
+  }
+  const va = String(a?.[field] ?? "").toLowerCase();
+  const vb = String(b?.[field] ?? "").toLowerCase();
+  if(va<vb) return -1*dir; if(va>vb) return 1*dir; return 0;
+}
+
+/* ====================== INDEXEDDB =========================== */
+let db, cache=[];
+const DB="qa_simple", STORE="records";
+
+function openDB(){
+ return new Promise((resolve)=>{
+   const req=indexedDB.open(DB,1);
+   req.onupgradeneeded=e=>{
+     const db=e.target.result;
+     if(!db.objectStoreNames.contains(STORE))
+       db.createObjectStore(STORE,{keyPath:"id",autoIncrement:true});
+   };
+   req.onsuccess=()=>resolve(req.result);
+ });
+}
+function tx(mode="readonly"){ return db.transaction(STORE,mode).objectStore(STORE); }
+
+const addRecord = r => new Promise(res=>{ const q=tx("readwrite").add(r); q.onsuccess=e=>res(e.target.result); });
+const putRecord = r => new Promise(res=>{ const q=tx("readwrite").put(r); q.onsuccess=e=>res(e.target.result); });
+const delRecord = id => new Promise(res=>{ const q=tx("readwrite").delete(id); q.onsuccess=()=>res(); });
+const getAll = ()=> new Promise(res=>{ const q=tx().getAll(); q.onsuccess=e=>res(e.target.result||[]); });
+const clearAll = ()=> new Promise(res=>{ const q=tx("readwrite").clear(); q.onsuccess=()=>res(); });
+
+/* ========================== FORM ============================ */
+// KEEP LAST: setelah tambah, pertahankan semua field KECUALI Par, x, sd, n
+function getForm(){
+  return {
+    Material: Material.value.trim(),
+    Supplier: Supplier.value.trim(),
+    Customer: Customer.value.trim(),
+    NC: NC.value.trim(),
+    Ref_No: Ref_No.value.trim(),
+
+    No_Order:  parseSafeNum(No_Order.value)  ?? 0,
+    Date: Date.value,
+
+    Kgs: parseSafeNum(Kgs.value),
+    Par: Par.value,
+    x:  parseSafeNum(x.value),
+    sd: parseSafeNum(sd.value),
+    n:  parseSafeNum(n.value)
+  };
+}
+function setForm(r){
+  Material.value=r.Material||"";
+  Supplier.value=r.Supplier||"";
+  Customer.value=r.Customer||"";
+  NC.value=r.NC||"";
+  Ref_No.value=r.Ref_No||"";
+  No_Order.value=(r.No_Order??"");
+  Date.value=r.Date||"";
+  Kgs.value=(r.Kgs??"");
+  Par.value=r.Par||"";
+  x.value=(r.x??"");
+  sd.value=(r.sd??"");
+  n.value=(r.n??"");
+}
+function resetFormFull(){
+  entryForm.reset();
+  id.value="";
+  btnSave.textContent="Tambah";
+  formMode.textContent="Mode: Tambah";
+}
+// khusus ADD: kosongkan Par, x, sd, n saja
+function resetFormKeepLastExcept(){
+  Par.value="";
+  x.value="";
+  sd.value="";
+  n.value="";
+  id.value="";
+  btnSave.textContent="Tambah";
+  formMode.textContent="Mode: Tambah";
+}
+
+/* ======================== TABLE + SORT ====================== */
+let sortKey = null;     // nama field
+let sortDir = 1;        // 1 = ASC, -1 = DESC
+
+function rowHTML(r){
+  return `
+  <tr>
+    <td>${r.id}</td>
+    <td>${r.Material ?? ""}</td>
+    <td>${r.Supplier ?? ""}</td>
+    <td>${r.Customer ?? ""}</td>
+    <td>${r.NC ?? ""}</td>
+    <td>${r.Ref_No ?? ""}</td>
+    <td class="right">${fmtSafe(r.No_Order)}</td>
+    <td>${toID(r.Date)}</td>
+    <td class="right">${fmtSafe(r.Kgs)}</td>
+    <td>${r.Par ?? ""}</td>
+    <td class="right">${fmtSafe(r.x)}</td>
+    <td class="right">${fmtSafe(r.sd)}</td>
+    <td class="right">${fmtSafe(r.n)}</td>
+    <td class="center">
+      <button class="secondary" type="button" data-act="edit" data-id="${r.id}">Edit</button>
+      <button class="warn" type="button" data-act="del" data-id="${r.id}">Del</button>
+    </td>
+  </tr>`;
+}
+
+function applySort(list){
+  if(!sortKey) return list;
+  const arr = list.slice();
+  arr.sort((a,b)=> compareVal(a,b,sortKey,sortDir));
+  return arr;
+}
+function updateSortIndicators(){
+  $$("#dataTable thead th .sort-ind").forEach(el=> el.textContent="");
+  if(!sortKey) return;
+  const th = $(`#dataTable thead th[data-field="${sortKey}"] .sort-ind`);
+  if(th) th.textContent = sortDir===1 ? "▲" : "▼";
+}
+
+function powerSearch(list){
+  const q=searchBox.value.trim().toLowerCase();
+  if(!q) return list;
+  return list.filter(r =>
+    Object.values(r).some(v => String(v??"").toLowerCase().includes(q))
+  );
+}
+
+function render(list){
+  const filtered = powerSearch(list);
+  const sorted = applySort(filtered);
+  tbody.innerHTML=sorted.map(rowHTML).join("");
+  countInfo.textContent=sorted.length+" baris";
+  updateSortIndicators();
+}
+
+/* ===================== SANITASI & REFRESH =================== */
+function sanitizeRecord(rec){
+  const fix = k => {
+    if (rec[k] === undefined || rec[k] === null || rec[k] === "") { rec[k] = (rec[k] === "" ? null : rec[k]); return; }
+    const v = parseSafeNum(rec[k]);
+    rec[k] = (v === null ? null : v);
+  };
+  ["No_Order","Kgs","x","sd","n"].forEach(fix);
+  return rec;
+}
+
+async function refresh(){
+  cache = (await getAll()).map(sanitizeRecord);
+  render(cache);
+}
+
+/* ===================== EVENTS =============================== */
+searchBox.addEventListener("input",()=>render(cache));
+
+entryForm.addEventListener("submit",async e=>{
+  e.preventDefault();
+  const data=getForm();
+  if(id.value){                 // UPDATE
+    await putRecord({id:Number(id.value),...data});
+    resetFormFull();            // selesai edit -> reset full
+  }else{                        // ADD
+    await addRecord(data);
+    resetFormKeepLastExcept();  // pertahankan field selain Par, x, sd, n
+  }
+  await refresh();
+});
+
+btnCancel.addEventListener("click",resetFormFull);
+
+tbody.addEventListener("click",async e=>{
+  const btn=e.target.closest("button");
+  if(!btn) return;
+  const idd=Number(btn.dataset.id);
+  if(btn.dataset.act==="edit"){
+    const row=cache.find(x=>x.id===idd);
+    if(!row) return;
+    setForm(row);
+    id.value=row.id;
+    btnSave.textContent="Update";
+    formMode.textContent="Mode: Edit (#"+row.id+")";
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+  else if(btn.dataset.act==="del"){
+    if(confirm("Hapus data ini?")){
+      await delRecord(idd);
+      await refresh();
+    }
+  }
+});
+
+// sorting handler (klik header)
+$("#dataTable thead").addEventListener("click", (e)=>{
+  const th = e.target.closest("th");
+  if(!th || th.classList.contains("nosort")) return;
+  const field = th.getAttribute("data-field");
+  if(!field) return;
+  if(sortKey === field){
+    sortDir = -sortDir; // toggle
+  }else{
+    sortKey = field;
+    sortDir = 1; // default ASC
+  }
+  render(cache);
+});
+
+/* ===================== IMPORT / EXPORT ====================== */
+btnExportCSV.addEventListener("click",async()=>{
+  const list=(await getAll()).map(sanitizeRecord);
+  if(!list.length){ alert("Data kosong"); return; }
+  let csv="Material;Supplier;Customer;NC;Ref_No;No_Order;Date;Kgs;Par;x;sd;n\n";
+  list.forEach(r=>{
+    csv+=`${r.Material??""};${r.Supplier??""};${r.Customer??""};${r.NC??""};${r.Ref_No??""};${r.No_Order??""};${toID(r.Date)};${r.Kgs??""};${r.Par??""};${r.x??""};${r.sd??""};${r.n??""}\n`;
+  });
+  const blob=new Blob([csv],{type:"text/csv"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="qa_records.csv";
+  a.click();
+});
+
+fileImport.addEventListener("change",async e=>{
+  const f=e.target.files[0];
+  if(!f) return;
+  const txt=await f.text();
+  let arr=[];
+  if(f.name.toLowerCase().endsWith(".json")){
+    arr=JSON.parse(txt);
+  }else{
+    // CSV ; dengan tanggal dd/mm/yyyy
+    const lines=txt.trim().split(/\r?\n/).slice(1).filter(Boolean);
+    arr=lines.map(l=>{
+      const p=l.split(";");
+      const dRaw = p[7] || "";
+      const dateIso = dRaw.includes("/")
+        ? (()=>{
+             const [dd,mm,yy]=dRaw.split("/");
+             return `${yy}-${mm}-${dd}`;
+           })()
+        : dRaw;
+
+      return {
+        Material:p[0], Supplier:p[1], Customer:p[2], NC:p[3], Ref_No:p[4],
+        No_Order:  parseSafeNum(p[5]) ?? 0,
+        Date: dateIso,
+        Kgs: parseSafeNum(p[8]),
+        Par: p[9],
+        x:  parseSafeNum(p[10]),
+        sd: parseSafeNum(p[11]),
+        n:  parseSafeNum(p[12])
+      };
+    });
+  }
+  const store=tx("readwrite");
+  for(const r of arr){ delete r.id; store.add(r); }
+  await refresh();
+  alert("Import selesai.");
+  fileImport.value="";
+});
+
+btnClear.addEventListener("click",async()=>{
+  if(confirm("Yakin hapus semua data?")){
+    await clearAll();
+    await refresh();
+  }
+});
+
+/* ===================== INIT ================================ */
+openDB().then(async r=>{
+  db=r;
+  await refresh();
+  const d=new Date();
+  Date.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+});
+</script>
+
+</body>
+</html>
